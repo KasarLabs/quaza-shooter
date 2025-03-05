@@ -29,7 +29,7 @@ pub static PRIVATE_KEY: Felt =
 pub static ADDRESS: Felt =
     Felt::from_hex_unchecked("0x8a1719e7ca19f3d91e8ef50a48fc456575f645497a1d55f30e3781f786afe4");
 
-pub static NB_ACCOUNTS: i32 = 4000;
+pub static NB_ACCOUNTS: i32 = 1000;
 
 #[tokio::main]
 async fn main() {
@@ -111,10 +111,14 @@ async fn main() {
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
 
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    println!("Waiting for the accounts to be deployed... Press Enter to continue.");
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read line");
 
     let accounts = Arc::new(accounts);
-    loop_transfers(accounts.clone(), 2000, 10).await;
+    loop_transfers(accounts.clone(), 200, 50).await;
 }
 
 pub async fn loop_transfers(
