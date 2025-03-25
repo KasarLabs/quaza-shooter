@@ -18,7 +18,7 @@ pub async fn transfer(
     contract_address: &Felt,
     amount: &Felt,
     recipient: &Felt,
-) -> Result<Felt, Box<dyn Error>> {
+) -> anyhow::Result<Felt> {
     let calldata = vec![*recipient, *amount, Felt::ZERO];
 
     let call = Call {

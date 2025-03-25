@@ -22,7 +22,7 @@ pub async fn deploy_erc20(
     initial_supply: Felt,
     recipient: Felt,
     salt: Felt,
-) -> Result<Felt, Box<dyn Error>> {
+) -> anyhow::Result<Felt> {
     let constructor_calldata = vec![
         Felt::from_bytes_be_slice(name.as_bytes()),
         Felt::from_bytes_be_slice(symbol.as_bytes()),

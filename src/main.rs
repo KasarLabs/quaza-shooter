@@ -19,22 +19,24 @@ use starknet::{
     signers::{LocalWallet, SigningKey},
 };
 
-pub static CHAIN_ID: Felt = Felt::from_hex_unchecked("0x4d41444152415f4445564e4554"); // MADARA_DEVNET
-pub static MAX_FEE: Felt = Felt::from_hex_unchecked("0x6efb28c75a0000");
-pub static FEE_ADDRESS: Felt =
+pub const CHAIN_ID: Felt = Felt::from_hex_unchecked("0x4d41444152415f4445564e4554"); // MADARA_DEVNET
+pub const MAX_FEE: Felt = Felt::from_hex_unchecked("0x6efb28c75a0000");
+pub const FEE_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7");
 
-pub static PRIVATE_KEY: Felt =
+pub const PRIVATE_KEY: Felt =
     Felt::from_hex_unchecked("0x514977443078cf1e0c36bc88b89ada9a46061a5cf728f40274caea21d76f174");
-pub static ADDRESS: Felt =
+pub const ADDRESS: Felt =
     Felt::from_hex_unchecked("0x8a1719e7ca19f3d91e8ef50a48fc456575f645497a1d55f30e3781f786afe4");
 
-pub static NB_ACCOUNTS: i32 = 1000;
+pub const NB_ACCOUNTS: usize = 5000;
+pub const CONCURRENCY: usize = 2000;
+pub const ITERATIONS: usize = 20000;
 
 #[tokio::main]
 async fn main() {
     let provider: Arc<JsonRpcClient<HttpTransport>> = Arc::new(JsonRpcClient::new(
-        HttpTransport::new(Url::parse("http://localhost:9944/").unwrap()),
+        HttpTransport::new(Url::parse("http://localhost:9946/").unwrap()),
     ));
 
     let dev_account = AccountManager::new(provider.clone(), PRIVATE_KEY, &ADDRESS, 0);
@@ -104,7 +106,7 @@ async fn main() {
 
     let accounts_addresses = futures::stream::iter(0..NB_ACCOUNTS)
         .map(|i| deploy_account::deploy_account(&account_factory, (i + 1).into()))
-        .buffer_unordered(100)
+        .buffer_unordered(CONCURRENCY)
         .collect::<Vec<_>>()
         .await
         .into_iter()
@@ -118,7 +120,7 @@ async fn main() {
         .expect("Failed to read line");
 
     let accounts = Arc::new(accounts);
-    loop_transfers(accounts.clone(), 200, 50).await;
+    loop_transfers(accounts.clone(), CONCURRENCY, ITERATIONS).await;
 }
 
 pub async fn loop_transfers(
@@ -198,11 +200,13 @@ pub async fn loop_transfers(
                     }
                 }
             }
-        });
+        })
+        .map(|f| tokio::spawn(f));
 
-        let results: Vec<Result<(usize, usize, usize), Box<dyn Error>>> =
+        let results: Vec<anyhow::Result<(usize, usize, usize)>> =
             futures::stream::iter(futures)
                 .buffer_unordered(concurrency)
+                .map(|r| r.expect("Join error"))
                 .collect()
                 .await;
 

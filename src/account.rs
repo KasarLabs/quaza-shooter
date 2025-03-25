@@ -58,7 +58,7 @@ impl AccountManager {
         }
     }
 
-    pub async fn declare_legacy(&self, path: &str) -> Result<Felt, Box<dyn Error>> {
+    pub async fn declare_legacy(&self, path: &str) -> anyhow::Result<Felt> {
         let contract_artifact: LegacyContractClass = serde_json::from_reader(File::open(path)?)?;
         let nonce = self.get_and_increment_nonce();
 
@@ -73,7 +73,7 @@ impl AccountManager {
         Ok(result.class_hash)
     }
 
-    pub async fn execute_v1(&self, calls: Vec<Call>) -> Result<Felt, Box<dyn Error>> {
+    pub async fn execute_v1(&self, calls: Vec<Call>) -> anyhow::Result<Felt> {
         let nonce = self.get_and_increment_nonce();
 
         let result = self
@@ -96,7 +96,7 @@ impl AccountManager {
         initial_supply: Felt,
         recipient: Felt,
         salt: Felt,
-    ) -> Result<Felt, Box<dyn Error>> {
+    ) -> anyhow::Result<Felt> {
         let constructor_calldata = vec![
             Felt::from_bytes_be_slice(name.as_bytes()),
             Felt::from_bytes_be_slice(symbol.as_bytes()),
@@ -132,7 +132,7 @@ impl AccountManager {
         contract_address: &Felt,
         amount: &Felt,
         recipient: &Felt,
-    ) -> Result<Felt, Box<dyn Error>> {
+    ) -> anyhow::Result<Felt> {
         let calldata = vec![*recipient, *amount, Felt::ZERO];
 
         let call = Call {
