@@ -25,7 +25,7 @@ pub fn get_address(
 pub async fn deploy_account(
     account_factory: &OpenZeppelinAccountFactory<&LocalWallet, &Arc<JsonRpcClient<HttpTransport>>>,
     salt: Felt,
-) -> Result<Felt, Box<dyn Error>> {
+) -> anyhow::Result<Felt> {
     let deploy = account_factory
         .deploy_v1(salt)
         .max_fee(MAX_FEE)

@@ -16,7 +16,7 @@ pub async fn declare_legacy(
     path: &str,
     account: &SingleOwnerAccount<JsonRpcClient<HttpTransport>, LocalWallet>,
     nonce: &mut Felt,
-) -> Result<Felt, Box<dyn Error>> {
+) -> anyhow::Result<Felt> {
     let contract_artifact: LegacyContractClass = serde_json::from_reader(File::open(path)?)?;
 
     // Déclaration du contrat sur Starknet
