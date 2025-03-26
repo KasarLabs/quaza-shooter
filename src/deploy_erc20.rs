@@ -2,12 +2,9 @@ use starknet::{
     accounts::SingleOwnerAccount,
     contract::ContractFactory,
     core::{types::Felt, utils::get_udc_deployed_address},
-    macros::selector,
     providers::jsonrpc::{HttpTransport, JsonRpcClient},
     signers::LocalWallet,
 };
-use std::error::Error;
-use std::sync::Arc;
 
 use crate::MAX_FEE;
 

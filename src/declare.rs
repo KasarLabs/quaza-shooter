@@ -7,7 +7,6 @@ use starknet::{
     providers::jsonrpc::{HttpTransport, JsonRpcClient},
     signers::LocalWallet,
 };
-use std::error::Error;
 use std::fs::File;
 
 use crate::MAX_FEE;

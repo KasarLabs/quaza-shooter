@@ -1,14 +1,10 @@
 use starknet::{
     accounts::{Account, SingleOwnerAccount},
-    core::{
-        types::{BlockId, BlockTag, Call, Felt},
-        utils::get_udc_deployed_address,
-    },
+    core::types::{Call, Felt},
     macros::selector,
     providers::jsonrpc::{HttpTransport, JsonRpcClient},
     signers::LocalWallet,
 };
-use std::error::Error;
 
 use crate::MAX_FEE;
 

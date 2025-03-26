@@ -2,9 +2,8 @@ mod account;
 mod declare;
 mod deploy_account;
 mod deploy_erc20;
-mod transfert;
+mod transfer;
 
-use std::error::Error;
 use std::sync::Arc;
 
 use account::AccountManager;
@@ -36,7 +35,7 @@ pub const ITERATIONS: usize = 20000;
 #[tokio::main]
 async fn main() {
     let provider: Arc<JsonRpcClient<HttpTransport>> = Arc::new(JsonRpcClient::new(
-        HttpTransport::new(Url::parse("http://localhost:9946/").unwrap()),
+        HttpTransport::new(Url::parse("http://localhost:9944/").unwrap()),
     ));
 
     let dev_account = AccountManager::new(provider.clone(), PRIVATE_KEY, &ADDRESS, 0);
@@ -44,14 +43,20 @@ async fn main() {
     let signer = LocalWallet::from(SigningKey::from_secret_scalar(PRIVATE_KEY));
 
     let oz_class_hash = dev_account
-        .declare_legacy("./contracts/v0/OpenzeppelinAccount.json")
+        .declare_v2(
+            "./contracts/v2.1.0/Account.sierra.json",
+            "./contracts/v2.1.0/Account.casm.json",
+        )
         .await
         .unwrap();
 
     println!("OpenZeppelinAccount class hash: 0x{:x}", oz_class_hash);
 
     let erc_20_class_hash = dev_account
-        .declare_legacy("./contracts/v0/ERC20.json")
+        .declare_v2(
+            "./contracts/v2.1.0/ERC20.sierra.json",
+            "./contracts/v2.1.0/ERC20.casm.json",
+        )
         .await
         .unwrap();
 
@@ -102,7 +107,7 @@ async fn main() {
     }
 
     println!("Waiting for the accounts to be funded for deploying...");
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     let accounts_addresses = futures::stream::iter(0..NB_ACCOUNTS)
         .map(|i| deploy_account::deploy_account(&account_factory, (i + 1).into()))
@@ -169,46 +174,47 @@ pub async fn loop_transfers(
             batch.len()
         );
 
-        let futures = batch.iter().map(|(sender_idx, recipient_idx, iteration)| {
-            let accounts = accounts.clone();
-            let s_idx = *sender_idx;
-            let r_idx = *recipient_idx;
-            let iter = *iteration;
+        let futures = batch
+            .iter()
+            .map(|(sender_idx, recipient_idx, iteration)| {
+                let accounts = accounts.clone();
+                let s_idx = *sender_idx;
+                let r_idx = *recipient_idx;
+                let iter = *iteration;
 
-            async move {
-                let sender = &accounts[s_idx];
-                let recipient_address = accounts[r_idx].address();
-                let amount = Felt::from(1);
+                async move {
+                    let sender = &accounts[s_idx];
+                    let recipient_address = accounts[r_idx].address();
+                    let amount = Felt::from(1);
 
-                match sender
-                    .transfer(&FEE_ADDRESS, &amount, &recipient_address)
-                    .await
-                {
-                    Ok(tx_hash) => {
-                        println!(
-                            "✅ Iter {} | {}->{}: tx {:#064x}",
-                            iter + 1,
-                            s_idx,
-                            r_idx,
-                            tx_hash
-                        );
-                        Ok((s_idx, r_idx, iter))
-                    }
-                    Err(e) => {
-                        eprintln!("❌ Iter {} | {}->{}: erreur: {}", iter + 1, s_idx, r_idx, e);
-                        Err(e)
+                    match sender
+                        .transfer(&FEE_ADDRESS, &amount, &recipient_address)
+                        .await
+                    {
+                        Ok(tx_hash) => {
+                            println!(
+                                "✅ Iter {} | {}->{}: tx {:#064x}",
+                                iter + 1,
+                                s_idx,
+                                r_idx,
+                                tx_hash
+                            );
+                            Ok((s_idx, r_idx, iter))
+                        }
+                        Err(e) => {
+                            eprintln!("❌ Iter {} | {}->{}: erreur: {}", iter + 1, s_idx, r_idx, e);
+                            Err(e)
+                        }
                     }
                 }
-            }
-        })
-        .map(|f| tokio::spawn(f));
+            })
+            .map(|f| tokio::spawn(f));
 
-        let results: Vec<anyhow::Result<(usize, usize, usize)>> =
-            futures::stream::iter(futures)
-                .buffer_unordered(concurrency)
-                .map(|r| r.expect("Join error"))
-                .collect()
-                .await;
+        let results: Vec<anyhow::Result<(usize, usize, usize)>> = futures::stream::iter(futures)
+            .buffer_unordered(concurrency)
+            .map(|r| r.expect("Join error"))
+            .collect()
+            .await;
 
         let batch_success = results.iter().filter(|r| r.is_ok()).count();
         let batch_failed = results.len() - batch_success;

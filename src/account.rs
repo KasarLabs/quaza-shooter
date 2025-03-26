@@ -8,14 +8,16 @@ use starknet::{
     accounts::{Account, ExecutionEncoding, SingleOwnerAccount},
     contract::ContractFactory,
     core::{
-        types::{contract::legacy::LegacyContractClass, Call, Felt},
+        types::{
+            contract::{legacy::LegacyContractClass, CompiledClass, SierraClass},
+            Call, Felt,
+        },
         utils::get_udc_deployed_address,
     },
     macros::selector,
     providers::jsonrpc::{HttpTransport, JsonRpcClient},
     signers::{LocalWallet, SigningKey},
 };
-use std::error::Error;
 use std::fs::File;
 
 use crate::{CHAIN_ID, MAX_FEE};
@@ -65,6 +67,25 @@ impl AccountManager {
         let result = self
             .account
             .declare_legacy(Arc::new(contract_artifact))
+            .max_fee(MAX_FEE)
+            .nonce(nonce.into())
+            .send()
+            .await?;
+
+        Ok(result.class_hash)
+    }
+
+    pub async fn declare_v2(&self, path: &str, compiled_path: &str) -> anyhow::Result<Felt> {
+        let contract_artifact: SierraClass = serde_json::from_reader(File::open(path)?)?;
+        let compiled_class: CompiledClass = serde_json::from_reader(File::open(compiled_path)?)?;
+        let compiled_class_hash = compiled_class.class_hash()?;
+        let flattened_class = contract_artifact.flatten()?;
+
+        let nonce = self.get_and_increment_nonce();
+
+        let result = self
+            .account
+            .declare_v2(Arc::new(flattened_class), compiled_class_hash)
             .max_fee(MAX_FEE)
             .nonce(nonce.into())
             .send()
